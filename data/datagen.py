@@ -3,21 +3,15 @@
 The annotation file is organized as:
     image_name #obj xmin ymin xmax ymax class_index ..
 '''
-from __future__ import print_function
-
 import os
-import sys
 import os.path
-
 import random
-import numpy as np
 
 import torch
 import torch.utils.data as data
-import torchvision.transforms as transforms
+from PIL import Image
 
-from encoder import DataEncoder
-from PIL import Image, ImageOps
+from data.encoder import DataEncoder
 
 
 class ListDataset(data.Dataset):
@@ -53,12 +47,12 @@ class ListDataset(data.Dataset):
             box = []
             label = []
             for i in range(num_objs):
-                xmin = splited[2+5*i]
-                ymin = splited[3+5*i]
-                xmax = splited[4+5*i]
-                ymax = splited[5+5*i]
-                c = splited[6+5*i]
-                box.append([float(xmin),float(ymin),float(xmax),float(ymax)])
+                xmin = splited[2 + 5 * i]
+                ymin = splited[3 + 5 * i]
+                xmax = splited[4 + 5 * i]
+                ymax = splited[5 + 5 * i]
+                c = splited[6 + 5 * i]
+                box.append([float(xmin), float(ymin), float(xmax), float(ymax)])
                 label.append(int(c))
             self.boxes.append(torch.Tensor(box))
             self.labels.append(torch.LongTensor(label))
@@ -86,10 +80,10 @@ class ListDataset(data.Dataset):
             img, boxes, labels = self.random_crop(img, boxes, labels)
 
         # Scale bbox locaitons to [0,1].
-        w,h = img.size
-        boxes /= torch.Tensor([w,h,w,h]).expand_as(boxes)
+        w, h = img.size
+        boxes /= torch.Tensor([w, h, w, h]).expand_as(boxes)
 
-        img = img.resize((self.img_size,self.img_size))
+        img = img.resize((self.img_size, self.img_size))
         img = self.transform(img)
 
         # Encode loc & conf targets.
@@ -113,10 +107,10 @@ class ListDataset(data.Dataset):
         if random.random() < 0.5:
             img = img.transpose(Image.FLIP_LEFT_RIGHT)
             w = img.width
-            xmin = w - boxes[:,2]
-            xmax = w - boxes[:,0]
-            boxes[:,0] = xmin
-            boxes[:,2] = xmax
+            xmin = w - boxes[:, 2]
+            xmax = w - boxes[:, 0]
+            boxes[:, 0] = xmin
+            boxes[:, 2] = xmax
         return img, boxes
 
     def random_crop(self, img, boxes, labels):
@@ -141,20 +135,20 @@ class ListDataset(data.Dataset):
                 return img, boxes, labels
 
             for _ in range(100):
-                w = random.randrange(int(0.1*imw), imw)
-                h = random.randrange(int(0.1*imh), imh)
+                w = random.randrange(int(0.1 * imw), imw)
+                h = random.randrange(int(0.1 * imh), imh)
 
-                if h > 2*w or w > 2*h:
+                if h > 2 * w or w > 2 * h:
                     continue
 
                 x = random.randrange(imw - w)
                 y = random.randrange(imh - h)
-                roi = torch.Tensor([[x, y, x+w, y+h]])
+                roi = torch.Tensor([[x, y, x + w, y + h]])
 
-                center = (boxes[:,:2] + boxes[:,2:]) / 2  # [N,2]
+                center = (boxes[:, :2] + boxes[:, 2:]) / 2  # [N,2]
                 roi2 = roi.expand(len(center), 4)  # [N,4]
-                mask = (center > roi2[:,:2]) & (center < roi2[:,2:])  # [N,2]
-                mask = mask[:,0] & mask[:,1]  #[N,]
+                mask = (center > roi2[:, :2]) & (center < roi2[:, 2:])  # [N,2]
+                mask = mask[:, 0] & mask[:, 1]  # [N,]
                 if not mask.any():
                     continue
 
@@ -164,11 +158,11 @@ class ListDataset(data.Dataset):
                 if iou.min() < min_iou:
                     continue
 
-                img = img.crop((x, y, x+w, y+h))
-                selected_boxes[:,0].add_(-x).clamp_(min=0, max=w)
-                selected_boxes[:,1].add_(-y).clamp_(min=0, max=h)
-                selected_boxes[:,2].add_(-x).clamp_(min=0, max=w)
-                selected_boxes[:,3].add_(-y).clamp_(min=0, max=h)
+                img = img.crop((x, y, x + w, y + h))
+                selected_boxes[:, 0].add_(-x).clamp_(min=0, max=w)
+                selected_boxes[:, 1].add_(-y).clamp_(min=0, max=h)
+                selected_boxes[:, 2].add_(-x).clamp_(min=0, max=w)
+                selected_boxes[:, 3].add_(-y).clamp_(min=0, max=h)
                 return img, selected_boxes, labels[mask]
 
     def __len__(self):

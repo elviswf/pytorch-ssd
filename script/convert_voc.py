@@ -3,7 +3,6 @@
 import os
 import xml.etree.ElementTree as ET
 
-
 VOC_LABELS = (
     'aeroplane',
     'bicycle',
@@ -27,13 +26,13 @@ VOC_LABELS = (
     'tvmonitor',
 )
 
-xml_dir = '/mnt/hgfs/D/download/PASCAL VOC/test_12/'
+xml_dir = '/home/elvis/data/pascalVOC/VOCdevkit/VOC2012/Annotations/'
 
-f = open('voc12_test.txt', 'w')
+f = open('../voc_data/voc12_test.txt', 'w')
 for xml_name in os.listdir(xml_dir):
     print('converting %s' % xml_name)
-    img_name = xml_name[:-4]+'.jpg'
-    f.write(img_name+' ')
+    img_name = xml_name[:-4] + '.jpg'
+    f.write(img_name + ' ')
 
     tree = ET.parse(os.path.join(xml_dir, xml_name))
     annos = []
@@ -45,6 +44,6 @@ for xml_name in os.listdir(xml_dir):
             xmax = bbox.find('xmax').text
             ymax = bbox.find('ymax').text
             class_label = VOC_LABELS.index(child.find('name').text)
-            annos.append('%s %s %s %s %s' % (xmin,ymin,xmax,ymax,class_label))
+            annos.append('%s %s %s %s %s' % (xmin, ymin, xmax, ymax, class_label))
     f.write('%d %s\n' % (len(annos), ' '.join(annos)))
 f.close()

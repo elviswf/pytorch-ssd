@@ -1,25 +1,8 @@
-import math
-import itertools
-
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.nn.init as init
-
-from torch.autograd import Variable
-
-from multibox_layer import MultiBoxLayer
-
-
-class L2Norm2d(nn.Module):
-    '''L2Norm layer across all channels.'''
-    def __init__(self, scale):
-        super(L2Norm2d, self).__init__()
-        self.scale = scale
-
-    def forward(self, x, dim=1):
-        '''out = scale * x / sqrt(\sum x_i^2)'''
-        return self.scale * x * x.pow(2).sum(dim).clamp(min=1e-12).rsqrt().expand_as(x)
+from torchvision.models.resnet import resnet18
+from models.multibox_layer import MultiBoxLayer
+from models.l2norm import L2Norm
 
 
 class SSD300(nn.Module):
@@ -30,7 +13,7 @@ class SSD300(nn.Module):
 
         # model
         self.base = self.VGG16()
-        self.norm4 = L2Norm2d(20)
+        self.norm4 = L2Norm(512, 20)
 
         self.conv5_1 = nn.Conv2d(512, 512, kernel_size=3, padding=1, dilation=1)
         self.conv5_2 = nn.Conv2d(512, 512, kernel_size=3, padding=1, dilation=1)
@@ -89,6 +72,11 @@ class SSD300(nn.Module):
 
         loc_preds, conf_preds = self.multibox(hs)
         return loc_preds, conf_preds
+
+    # def resnet(self):
+    #     pretrain = resnet18(pretrained=True)
+    #     feature = nn.Sequential(*list(pretrain.children())[:-1])
+    #     return feature
 
     def VGG16(self):
         '''VGG16 layers.'''

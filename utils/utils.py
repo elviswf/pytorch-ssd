@@ -21,13 +21,14 @@ def get_mean_and_std(dataset, max_load=10000):
     N = min(max_load, len(dataset))
     for i in range(N):
         print(i)
-        im,_,_ = dataset.load(1)
+        im, _, _ = dataset.load(1)
         for j in range(3):
-            mean[j] += im[:,j,:,:].mean()
-            std[j] += im[:,j,:,:].std()
+            mean[j] += im[:, j, :, :].mean()
+            std[j] += im[:, j, :, :].std()
     mean.div_(N)
     std.div_(N)
     return mean, std
+
 
 def mask_select(input, mask, dim):
     '''Select tensor rows/cols using a mask tensor.
@@ -63,12 +64,13 @@ def mask_select(input, mask, dim):
     index = mask.nonzero().squeeze(1)
     return input.index_select(dim, index)
 
+
 def msr_init(net):
     '''Initialize layer parameters.'''
     for layer in net:
         if type(layer) == nn.Conv2d:
-            n = layer.kernel_size[0]*layer.kernel_size[1]*layer.out_channels
-            layer.weight.data.normal_(0, math.sqrt(2./n))
+            n = layer.kernel_size[0] * layer.kernel_size[1] * layer.out_channels
+            layer.weight.data.normal_(0, math.sqrt(2. / n))
             layer.bias.data.zero_()
         elif type(layer) == nn.BatchNorm2d:
             layer.weight.data.fill_(1)
@@ -83,12 +85,14 @@ term_width = int(term_width)
 TOTAL_BAR_LENGTH = 86.
 last_time = time.time()
 begin_time = last_time
+
+
 def progress_bar(current, total, msg=None):
     global last_time, begin_time
     if current == 0:
         begin_time = time.time()  # Reset for new bar.
 
-    cur_len = int(TOTAL_BAR_LENGTH*current/total)
+    cur_len = int(TOTAL_BAR_LENGTH * current / total)
     rest_len = int(TOTAL_BAR_LENGTH - cur_len) - 1
 
     sys.stdout.write(' [')
@@ -112,30 +116,31 @@ def progress_bar(current, total, msg=None):
 
     msg = ''.join(L)
     sys.stdout.write(msg)
-    for i in range(term_width-int(TOTAL_BAR_LENGTH)-len(msg)-3):
+    for i in range(term_width - int(TOTAL_BAR_LENGTH) - len(msg) - 3):
         sys.stdout.write(' ')
 
     # Go back to the center of the bar.
-    for i in range(term_width-int(TOTAL_BAR_LENGTH/2)):
+    for i in range(term_width - int(TOTAL_BAR_LENGTH / 2)):
         sys.stdout.write('\b')
-    sys.stdout.write(' %d/%d ' % (current+1, total))
+    sys.stdout.write(' %d/%d ' % (current + 1, total))
 
-    if current < total-1:
+    if current < total - 1:
         sys.stdout.write('\r')
     else:
         sys.stdout.write('\n')
     sys.stdout.flush()
 
+
 def format_time(seconds):
-    days = int(seconds / 3600/24)
-    seconds = seconds - days*3600*24
+    days = int(seconds / 3600 / 24)
+    seconds = seconds - days * 3600 * 24
     hours = int(seconds / 3600)
-    seconds = seconds - hours*3600
+    seconds = seconds - hours * 3600
     minutes = int(seconds / 60)
-    seconds = seconds - minutes*60
+    seconds = seconds - minutes * 60
     secondsf = int(seconds)
     seconds = seconds - secondsf
-    millis = int(seconds*1000)
+    millis = int(seconds * 1000)
 
     f = ''
     i = 1

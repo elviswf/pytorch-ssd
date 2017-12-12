@@ -4,13 +4,14 @@ import torch
 import math
 import itertools
 
+
 class DataEncoder:
     def __init__(self):
         '''Compute default box sizes with scale and aspect transform.'''
         scale = 300.
         steps = [s / scale for s in (8, 16, 32, 64, 100, 300)]
         sizes = [s / scale for s in (30, 60, 111, 162, 213, 264, 315)]
-        aspect_ratios = ((2,), (2,3), (2,3), (2,3), (2,), (2,))
+        aspect_ratios = ((2,), (2, 3), (2, 3), (2, 3), (2,), (2,))
         feature_map_sizes = (38, 19, 10, 5, 3, 1)
 
         num_layers = len(feature_map_sizes)
@@ -18,14 +19,14 @@ class DataEncoder:
         boxes = []
         for i in range(num_layers):
             fmsize = feature_map_sizes[i]
-            for h,w in itertools.product(range(fmsize), repeat=2):
-                cx = (w + 0.5)*steps[i]
-                cy = (h + 0.5)*steps[i]
+            for h, w in itertools.product(range(fmsize), repeat=2):
+                cx = (w + 0.5) * steps[i]
+                cy = (h + 0.5) * steps[i]
 
                 s = sizes[i]
                 boxes.append((cx, cy, s, s))
 
-                s = math.sqrt(sizes[i] * sizes[i+1])
+                s = math.sqrt(sizes[i] * sizes[i + 1])
                 boxes.append((cx, cy, s, s))
 
                 s = sizes[i]
@@ -49,21 +50,21 @@ class DataEncoder:
         M = box2.size(0)
 
         lt = torch.max(
-            box1[:,:2].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
-            box2[:,:2].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
+            box1[:, :2].unsqueeze(1).expand(N, M, 2),  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:, :2].unsqueeze(0).expand(N, M, 2),  # [M,2] -> [1,M,2] -> [N,M,2]
         )
 
         rb = torch.min(
-            box1[:,2:].unsqueeze(1).expand(N,M,2),  # [N,2] -> [N,1,2] -> [N,M,2]
-            box2[:,2:].unsqueeze(0).expand(N,M,2),  # [M,2] -> [1,M,2] -> [N,M,2]
+            box1[:, 2:].unsqueeze(1).expand(N, M, 2),  # [N,2] -> [N,1,2] -> [N,M,2]
+            box2[:, 2:].unsqueeze(0).expand(N, M, 2),  # [M,2] -> [1,M,2] -> [N,M,2]
         )
 
         wh = rb - lt  # [N,M,2]
-        wh[wh<0] = 0  # clip at 0
-        inter = wh[:,:,0] * wh[:,:,1]  # [N,M]
+        wh[wh < 0] = 0  # clip at 0
+        inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
 
-        area1 = (box1[:,2]-box1[:,0]) * (box1[:,3]-box1[:,1])  # [N,]
-        area2 = (box2[:,2]-box2[:,0]) * (box2[:,3]-box2[:,1])  # [M,]
+        area1 = (box1[:, 2] - box1[:, 0]) * (box1[:, 3] - box1[:, 1])  # [N,]
+        area2 = (box2[:, 2] - box2[:, 0]) * (box2[:, 3] - box2[:, 1])  # [M,]
         area1 = area1.unsqueeze(1).expand_as(inter)  # [N,] -> [N,1] -> [N,M]
         area2 = area2.unsqueeze(0).expand_as(inter)  # [M,] -> [1,M] -> [N,M]
 
@@ -92,24 +93,24 @@ class DataEncoder:
 
         iou = self.iou(  # [#obj,8732]
             boxes,
-            torch.cat([default_boxes[:,:2] - default_boxes[:,2:]/2,
-                       default_boxes[:,:2] + default_boxes[:,2:]/2], 1)
+            torch.cat([default_boxes[:, :2] - default_boxes[:, 2:] / 2,
+                       default_boxes[:, :2] + default_boxes[:, 2:] / 2], 1)
         )
 
         iou, max_idx = iou.max(0)  # [1,8732]
-        max_idx.squeeze_(0)        # [8732,]
-        iou.squeeze_(0)            # [8732,]
+        max_idx.squeeze_(0)  # [8732,]
+        iou.squeeze_(0)  # [8732,]
 
-        boxes = boxes[max_idx]     # [8732,4]
+        boxes = boxes[max_idx]  # [8732,4]
         variances = [0.1, 0.2]
-        cxcy = (boxes[:,:2] + boxes[:,2:])/2 - default_boxes[:,:2]  # [8732,2]
-        cxcy /= variances[0] * default_boxes[:,2:]
-        wh = (boxes[:,2:] - boxes[:,:2]) / default_boxes[:,2:]      # [8732,2]
+        cxcy = (boxes[:, :2] + boxes[:, 2:]) / 2 - default_boxes[:, :2]  # [8732,2]
+        cxcy /= variances[0] * default_boxes[:, 2:]
+        wh = (boxes[:, 2:] - boxes[:, :2]) / default_boxes[:, 2:]  # [8732,2]
         wh = torch.log(wh) / variances[1]
         loc = torch.cat([cxcy, wh], 1)  # [8732,4]
 
-        conf = 1 + classes[max_idx]   # [8732,], background class = 0
-        conf[iou<threshold] = 0       # background
+        conf = 1 + classes[max_idx]  # [8732,], background class = 0
+        conf[iou < threshold] = 0  # background
         return loc, conf
 
     def nms(self, bboxes, scores, threshold=0.5, mode='union'):
@@ -127,12 +128,12 @@ class DataEncoder:
         Ref:
           https://github.com/rbgirshick/py-faster-rcnn/blob/master/lib/nms/py_cpu_nms.py
         '''
-        x1 = bboxes[:,0]
-        y1 = bboxes[:,1]
-        x2 = bboxes[:,2]
-        y2 = bboxes[:,3]
+        x1 = bboxes[:, 0]
+        y1 = bboxes[:, 1]
+        x2 = bboxes[:, 2]
+        y2 = bboxes[:, 3]
 
-        areas = (x2-x1) * (y2-y1)
+        areas = (x2 - x1) * (y2 - y1)
         _, order = scores.sort(0, descending=True)
 
         keep = []
@@ -148,9 +149,9 @@ class DataEncoder:
             xx2 = x2[order[1:]].clamp(max=x2[i])
             yy2 = y2[order[1:]].clamp(max=y2[i])
 
-            w = (xx2-xx1).clamp(min=0)
-            h = (yy2-yy1).clamp(min=0)
-            inter = w*h
+            w = (xx2 - xx1).clamp(min=0)
+            h = (yy2 - yy1).clamp(min=0)
+            inter = w * h
 
             if mode == 'union':
                 ovr = inter / (areas[i] + areas[order[1:]] - inter)
@@ -159,10 +160,10 @@ class DataEncoder:
             else:
                 raise TypeError('Unknown nms mode: %s.' % mode)
 
-            ids = (ovr<=threshold).nonzero().squeeze()
+            ids = (ovr <= threshold).nonzero().squeeze()
             if ids.numel() == 0:
                 break
-            order = order[ids+1]
+            order = order[ids + 1]
         return torch.LongTensor(keep)
 
     def decode(self, loc, conf):
@@ -177,9 +178,9 @@ class DataEncoder:
           labels: (tensor) class labels, sized [#obj,1].
         '''
         variances = [0.1, 0.2]
-        wh = torch.exp(loc[:,2:]*variances[1]) * self.default_boxes[:,2:]
-        cxcy = loc[:,:2] * variances[0] * self.default_boxes[:,2:] + self.default_boxes[:,:2]
-        boxes = torch.cat([cxcy-wh/2, cxcy+wh/2], 1)  # [8732,4]
+        wh = torch.exp(loc[:, 2:] * variances[1]) * self.default_boxes[:, 2:]
+        cxcy = loc[:, :2] * variances[0] * self.default_boxes[:, 2:] + self.default_boxes[:, :2]
+        boxes = torch.cat([cxcy - wh / 2, cxcy + wh / 2], 1)  # [8732,4]
 
         max_conf, labels = conf.max(1)  # [8732,1]
         ids = labels.squeeze(1).nonzero().squeeze(1)  # [#boxes,]
